@@ -1,4 +1,14 @@
 <Project>
+
+  <PropertyGroup>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>_Generated</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="_Generated\**\*.g.cs" />
+    <None Include="_Generated\**\*.g.cs" />
+  </ItemGroup>
+
   <!-- Set InformationVersion here, since $(Version) is already set at this point. -->
   <PropertyGroup>
     <InformationalVersion>$(Version). Commit Hash: $(GitHeadSha)</InformationalVersion>
@@ -8,19 +18,8 @@
   <Import Condition=" '$(OrleansBuildTimeCodeGen)' == 'true' " Project="$(MSBuildThisFileDirectory)src/Orleans.Sdk/build/Microsoft.Orleans.Sdk.targets" />
   <ItemGroup>
     <!-- Enable code generator -->
-    <ProjectReference
-      Include="$(SourceRoot)src/Orleans.CodeGenerator/Orleans.CodeGenerator.csproj"
-      ReferenceOutputAssembly="false"
-      OutputItemType="Analyzer"
-      Condition=" '$(OrleansBuildTimeCodeGen)' == 'true' "/>
-    <ProjectReference
-      Include="$(SourceRoot)src/Orleans.Analyzers/Orleans.Analyzers.csproj"
-      ReferenceOutputAssembly="false"
-      AssetTargetFallback="netstandard2.0"
-      UndefineProperties="TargetFramework"
-      SkipGetTargetFrameworkProperties="true"
-      OutputItemType="Analyzer"
-      Condition=" '$(OrleansBuildTimeCodeGen)' == 'true' "/>
+    <ProjectReference Include="$(SourceRoot)src/Orleans.CodeGenerator/Orleans.CodeGenerator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" Condition=" '$(OrleansBuildTimeCodeGen)' == 'true' "/>
+    <ProjectReference Include="$(SourceRoot)src/Orleans.Analyzers/Orleans.Analyzers.csproj" ReferenceOutputAssembly="false" AssetTargetFallback="netstandard2.0" UndefineProperties="TargetFramework" SkipGetTargetFrameworkProperties="true" OutputItemType="Analyzer" Condition=" '$(OrleansBuildTimeCodeGen)' == 'true' "/>
   </ItemGroup>
 
 </Project>
