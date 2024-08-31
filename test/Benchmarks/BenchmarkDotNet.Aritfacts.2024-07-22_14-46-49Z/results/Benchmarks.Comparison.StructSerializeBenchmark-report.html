@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Benchmarks.Comparison.StructSerializeBenchmark-20240722-144700</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 10 (10.0.19045.4529/22H2/2022Update)
+Intel Xeon CPU E5-2667 v4 3.20GHz, 1 CPU, 16 logical and 8 physical cores
+.NET SDK 8.0.303
+  [Host]     : .NET 8.0.7 (8.0.724.31311), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.7 (8.0.724.31311), X64 RyuJIT AVX2
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method     </th><th>Mean </th><th>Error</th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Payload</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>Orleans</td><td>74.48 ns</td><td>1.525 ns</td><td>2.283 ns</td><td>1.00</td><td>0.00</td><td>-</td><td>20 B</td><td>-</td><td>NA</td>
+</tr><tr><td>Utf8Json</td><td>146.61 ns</td><td>2.915 ns</td><td>3.470 ns</td><td>1.96</td><td>0.08</td><td>-</td><td>154 B</td><td>-</td><td>NA</td>
+</tr><tr><td>SystemTextJson</td><td>376.48 ns</td><td>4.998 ns</td><td>3.902 ns</td><td>5.07</td><td>0.15</td><td>-</td><td>154 B</td><td>56 B</td><td>NA</td>
+</tr><tr><td>MessagePackCSharp</td><td>89.20 ns</td><td>1.151 ns</td><td>1.076 ns</td><td>1.20</td><td>0.04</td><td>0.0001</td><td>10 B</td><td>40 B</td><td>NA</td>
+</tr><tr><td>ProtobufNet</td><td>225.24 ns</td><td>4.368 ns</td><td>4.086 ns</td><td>3.02</td><td>0.12</td><td>-</td><td>18 B</td><td>-</td><td>NA</td>
+</tr><tr><td>Hyperion</td><td>147.33 ns</td><td>2.352 ns</td><td>2.085 ns</td><td>1.98</td><td>0.08</td><td>-</td><td>39 B</td><td>56 B</td><td>NA</td>
+</tr><tr><td>NewtonsoftJson</td><td>1,252.78 ns</td><td>19.420 ns</td><td>21.586 ns</td><td>16.81</td><td>0.52</td><td>0.0076</td><td>154 B</td><td>2080 B</td><td>NA</td>
+</tr><tr><td>SpanJson</td><td>189.42 ns</td><td>1.610 ns</td><td>1.428 ns</td><td>2.54</td><td>0.07</td><td>0.0007</td><td>154 B</td><td>184 B</td><td>NA</td>
+</tr></tbody></table>
+</body>
+</html>

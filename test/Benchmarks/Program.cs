@@ -4,6 +4,8 @@ using Benchmarks.MapReduce;
 using Benchmarks.Ping;
 using Benchmarks.Transactions;
 using Benchmarks.GrainStorage;
+using Benchmarks.Comparison;
+using Benchmarks.Serialization.Comparison;
 
 namespace Benchmarks
 {
@@ -276,6 +278,14 @@ namespace Benchmarks
         // requires benchmark name or 'All' word as first parameter
         public static void Main(string[] args)
         {
+            BenchmarkRunner.Run<ArrayDeserializeBenchmark>();
+            BenchmarkRunner.Run<ArraySerializeBenchmark>();
+            BenchmarkRunner.Run<ClassDeserializeBenchmark>();
+            BenchmarkRunner.Run<ClassSerializeBenchmark>();
+            BenchmarkRunner.Run<CopierBenchmark>();
+            BenchmarkRunner.Run<StructDeserializeBenchmark>();
+            BenchmarkRunner.Run<StructSerializeBenchmark>();
+
             var slicedArgs = args.Skip(1).ToArray();
             if (args.Length > 0 && args[0].Equals("all", StringComparison.InvariantCultureIgnoreCase))
             {

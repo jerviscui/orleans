@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Benchmarks.Serialization.Comparison.ArrayDeserializeBenchmark-20240722-142749</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 10 (10.0.19045.4529/22H2/2022Update)
+Intel Xeon CPU E5-2667 v4 3.20GHz, 1 CPU, 16 logical and 8 physical cores
+.NET SDK 8.0.303
+  [Host]     : .NET 8.0.7 (8.0.724.31311), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.7 (8.0.724.31311), X64 RyuJIT AVX2
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method             </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>MessagePackDeserialize</td><td>40.00 &mu;s</td><td>0.775 &mu;s</td><td>1.230 &mu;s</td><td>1.00</td><td>0.00</td><td>-</td><td>11.74 KB</td><td>1.00</td>
+</tr><tr><td>ProtobufNetDeserialize</td><td>83.05 &mu;s</td><td>1.514 &mu;s</td><td>1.416 &mu;s</td><td>2.08</td><td>0.08</td><td>-</td><td>11.74 KB</td><td>1.00</td>
+</tr><tr><td>SystemTextJsonDeserialize</td><td>121.10 &mu;s</td><td>2.377 &mu;s</td><td>2.107 &mu;s</td><td>3.03</td><td>0.12</td><td>0.2441</td><td>67.62 KB</td><td>5.76</td>
+</tr><tr><td>OrleansDeserialize</td><td>48.62 &mu;s</td><td>0.737 &mu;s</td><td>0.654 &mu;s</td><td>1.22</td><td>0.05</td><td>-</td><td>11.74 KB</td><td>1.00</td>
+</tr></tbody></table>
+</body>
+</html>

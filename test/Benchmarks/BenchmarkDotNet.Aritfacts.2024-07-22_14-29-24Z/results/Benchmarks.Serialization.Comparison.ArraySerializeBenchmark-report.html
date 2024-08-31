@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Benchmarks.Serialization.Comparison.ArraySerializeBenchmark-20240722-142936</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 10 (10.0.19045.4529/22H2/2022Update)
+Intel Xeon CPU E5-2667 v4 3.20GHz, 1 CPU, 16 logical and 8 physical cores
+.NET SDK 8.0.303
+  [Host]     : .NET 8.0.7 (8.0.724.31311), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.7 (8.0.724.31311), X64 RyuJIT AVX2
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method              </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>OrleansPipeWriter</td><td>46.86 &mu;s</td><td>0.632 &mu;s</td><td>0.591 &mu;s</td><td>46.78 &mu;s</td><td>?</td><td>?</td><td>-</td><td>480 B</td><td>?</td>
+</tr><tr><td>MessagePackSerialize</td><td>19.52 &mu;s</td><td>0.381 &mu;s</td><td>0.391 &mu;s</td><td>19.45 &mu;s</td><td>1.00</td><td>0.00</td><td>0.0610</td><td>16032 B</td><td>1.00</td>
+</tr><tr><td>ProtobufNetSerialize</td><td>63.61 &mu;s</td><td>1.083 &mu;s</td><td>0.905 &mu;s</td><td>63.40 &mu;s</td><td>3.28</td><td>0.06</td><td>-</td><td>17024 B</td><td>1.06</td>
+</tr><tr><td>SystemTextJsonSerialize</td><td>71.72 &mu;s</td><td>1.307 &mu;s</td><td>1.159 &mu;s</td><td>71.70 &mu;s</td><td>3.69</td><td>0.09</td><td>0.1221</td><td>49488 B</td><td>3.09</td>
+</tr><tr><td>OrleansSerialize</td><td>26.82 &mu;s</td><td>0.508 &mu;s</td><td>0.499 &mu;s</td><td>26.58 &mu;s</td><td>1.38</td><td>0.03</td><td>0.0610</td><td>17032 B</td><td>1.06</td>
+</tr><tr><td>MessagePackBufferWriter</td><td>16.38 &mu;s</td><td>0.315 &mu;s</td><td>0.309 &mu;s</td><td>16.26 &mu;s</td><td>1.00</td><td>0.00</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>ProtobufNetBufferWriter</td><td>97.64 &mu;s</td><td>5.766 &mu;s</td><td>16.728 &mu;s</td><td>90.63 &mu;s</td><td>6.19</td><td>1.25</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>SystemTextJsonBufferWriter</td><td>71.85 &mu;s</td><td>1.390 &mu;s</td><td>1.544 &mu;s</td><td>71.52 &mu;s</td><td>4.38</td><td>0.13</td><td>0.1221</td><td>32312 B</td><td>NA</td>
+</tr><tr><td>OrleansBufferWriter</td><td>23.58 &mu;s</td><td>0.353 &mu;s</td><td>0.295 &mu;s</td><td>23.62 &mu;s</td><td>1.44</td><td>0.03</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>OrleansBufferWriter2</td><td>44.74 &mu;s</td><td>0.840 &mu;s</td><td>0.933 &mu;s</td><td>44.37 &mu;s</td><td>2.73</td><td>0.07</td><td>-</td><td>-</td><td>NA</td>
+</tr></tbody></table>
+</body>
+</html>
