@@ -1,4 +1,3 @@
-
 using System;
 
 namespace Orleans.Transactions
@@ -32,6 +31,9 @@ namespace Orleans.Transactions
             }
         }
 
+        /// <summary>
+        /// 保证消息链中的时间单调递增
+        /// </summary>
         public DateTime MergeUtcNow(DateTime timestamp)
         {
             lock (this.lockable)

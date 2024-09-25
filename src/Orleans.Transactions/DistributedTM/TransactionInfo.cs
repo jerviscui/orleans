@@ -74,6 +74,9 @@ namespace Orleans.Transactions
             return new TransactionInfo(this);
         }
 
+        /// <summary>
+        /// add returnedTransaction into joined 
+        /// </summary>
         public void Join(TransactionInfo x)
         {
             joined.Enqueue(x);
@@ -107,6 +110,7 @@ namespace Orleans.Transactions
         }
 
         /// <summary>
+        /// <para>move joined into Participants</para>
         /// Reconciles all pending calls that have join the transaction.
         /// </summary>
         /// <returns>true if there are no orphans, false otherwise</returns>
