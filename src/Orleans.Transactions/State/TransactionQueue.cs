@@ -224,7 +224,7 @@ namespace Orleans.Transactions.State
         {
             var locked = await this.RWLock.ValidateLock(transactionId, accessCount);
             var status = locked.Item1;
-            var record = locked.Item2;
+            var record = locked.Item2; // record 来自 currentGroup
             var valid = status == TransactionalStatus.Ok;
 
             record.Timestamp = timeStamp;
