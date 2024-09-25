@@ -13,7 +13,7 @@ public static class SiloBuilderExtensions
     public static ISiloBuilder UseTransactions(this ISiloBuilder builder)
     {
         return builder.ConfigureServices(services => services.UseTransactionsWithSilo())
-                      .AddGrainExtension<ITransactionManagerExtension, TransactionManagerExtension>()
-                      .AddGrainExtension<ITransactionalResourceExtension, TransactionalResourceExtension>();
+            .AddGrainExtension<ITransactionManagerExtension, TransactionManagerExtension>()
+            .AddGrainExtension<ITransactionalResourceExtension, TransactionalResourceExtension>();
     }
 }
