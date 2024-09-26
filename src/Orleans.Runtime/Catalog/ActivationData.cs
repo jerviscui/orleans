@@ -890,10 +890,12 @@ internal sealed class ActivationData : IGrainContext, ICollectibleGrainContext, 
 
                     if (operations is not null)
                     {
+                        // execute system Command
                         await ProcessOperationsAsync(operations);
                     }
                 }
 
+                // execute the request
                 ProcessPendingRequests();
 
                 await _workSignal.WaitAsync();
@@ -1003,6 +1005,7 @@ internal sealed class ActivationData : IGrainContext, ICollectibleGrainContext, 
                     RecordRunning(message, message.IsAlwaysInterleave);
                 }
 
+                // without await, 可重入请求可以并行执行
                 // Start invoking the message outside of the lock
                 InvokeIncomingRequest(message);
             } while (true);
@@ -1115,7 +1118,7 @@ internal sealed class ActivationData : IGrainContext, ICollectibleGrainContext, 
 
             return false;
         }
-
+        
         async Task ProcessOperationsAsync(List<object> operations)
         {
             foreach (var op in operations)
@@ -1705,7 +1708,7 @@ internal sealed class ActivationData : IGrainContext, ICollectibleGrainContext, 
                                     ForwardingAddress,
                                     GrainInstance?.GetType(),
                                     primary != null ? $"Primary Directory partition for this grain is {primary}. "
-                                    : string.Empty,
+                                        : string.Empty,
                                     Address.ToFullString(),
                                     WaitingCount);
                         }
