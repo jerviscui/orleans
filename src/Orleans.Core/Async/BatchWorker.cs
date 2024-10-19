@@ -65,8 +65,9 @@ namespace Orleans
         /// <summary>
         /// Instructs the batch worker to run again to check for work, if
         /// it has not run again already by then, at specified <paramref name="utcTime"/>.
+        /// <para>延迟一段时间再执行 Notify</para>
         /// </summary>
-        /// <param name="utcTime"></param>
+        /// <param name="utcTime">Time of next execution Notify</param>
         public void Notify(DateTime utcTime)
         {
             var now = DateTime.UtcNow;
@@ -105,7 +106,9 @@ namespace Orleans
             scheduledNotify = null;
 
             // Queue a task that is doing the work
-            var task = Task.Factory.StartNew(s => ((BatchWorker)s!).Work(), this, default, default, TaskScheduler.Current).Unwrap();
+            var task = Task.Factory
+                .StartNew(s => ((BatchWorker)s!).Work(), this, default, default, TaskScheduler.Current)
+                .Unwrap();
             currentWorkCycle = task;
 
             // chain a continuation that checks for more work, on the same scheduler
@@ -219,7 +222,7 @@ namespace Orleans
             this.CancellationToken = cancellationToken;
         }
 
-        /// <inheritdoc />
+        /// <inheritdoc/>
         protected override Task Work()
         {
             return work();

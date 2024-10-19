@@ -1,4 +1,3 @@
-
 using System;
 
 namespace Orleans.Transactions

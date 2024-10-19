@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -26,23 +25,36 @@ namespace Orleans.Transactions
         {
         }
 
-        // a unique identifier for this transaction
+        /// <summary>
+        /// a unique identifier for this transaction
+        /// </summary>
         public Guid TransactionId;
 
-        // the time at which this transaction was started on the TA
+        /// <summary>
+        /// the time at which this transaction was started on the TA
+        /// </summary>
         public DateTime Priority;
 
-        // a deadline for the transaction to complete successfully, set by the TA
+        /// <summary>
+        /// a deadline for the transaction to complete successfully, set by the TA
+        /// <para>transaction 等待锁可用的最大时间</para>
+        /// </summary>
         public DateTime Deadline;
 
-        // the transaction timestamp as computed by the algorithm
+        /// <summary>
+        /// the transaction timestamp as computed by the algorithm
+        /// </summary>
         public DateTime Timestamp;
 
-        // the number of reads and writes that this transaction has performed on this transactional participant
+        /// <summary>
+        /// the number of reads and writes that this transaction has performed on this transactional participant
+        /// </summary>
         public int NumberReads;
         public int NumberWrites;
 
-        // the state for this transaction, and the sequence number of this state
+        /// <summary>
+        /// the state for this transaction, and the sequence number of this state
+        /// </summary>
         public TState State;
         public long SequenceNumber;
         public bool HasCopiedState;
@@ -51,6 +63,7 @@ namespace Orleans.Transactions
         {
             NumberReads++;
         }
+
         public void AddWrite()
         {
             NumberWrites++;
@@ -58,10 +71,14 @@ namespace Orleans.Transactions
 
         public CommitRole Role;
 
-        // used for readonly and local commit
+        /// <summary>
+        /// used for readonly and local commit
+        /// </summary>
         public TaskCompletionSource<TransactionalStatus> PromiseForTA;
 
-        // used for local and remote commit
+        /// <summary>
+        /// used for local and remote commit
+        /// </summary>
         public ParticipantId TransactionManager;
 
         // used for local commit
@@ -73,7 +90,6 @@ namespace Orleans.Transactions
         public DateTime? LastSent;
         public bool PrepareIsPersisted;
         public TaskCompletionSource<bool> ConfirmationResponsePromise;
-
 
         /// <summary>
         /// Indicates whether a transaction record is ready to commit
@@ -93,7 +109,7 @@ namespace Orleans.Transactions
                     case CommitRole.RemoteCommit:
                         return
                             (ConfirmationResponsePromise != null)  // TM has sent confirm and is waiting for response
-                         || (NumberWrites == 0 && LastSent.HasValue);  // this participant did not write and finished prepare
+                            || (NumberWrites == 0 && LastSent.HasValue);  // this participant did not write and finished prepare
 
                     default:
                         throw new NotSupportedException($"{Role} is not a supported CommitRole.");

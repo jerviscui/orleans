@@ -42,9 +42,15 @@ namespace Orleans.Transactions
         [Id(0)]
         public Guid TransactionId { get; }
 
+        /// <summary>
+        /// 最后修改时间？
+        /// </summary>
         [Id(1)]
         public DateTime TimeStamp { get; set; }
 
+        /// <summary>
+        /// 创建 Transaction 时 Clock 时间戳
+        /// </summary>
         [Id(2)]
         public DateTime Priority { get; set; }
 

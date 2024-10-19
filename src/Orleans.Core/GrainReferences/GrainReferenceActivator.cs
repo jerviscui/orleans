@@ -82,7 +82,8 @@ namespace Orleans.GrainReferences
 
                     if (activator is null)
                     {
-                        throw new InvalidOperationException($"Unable to find an {nameof(IGrainReferenceActivatorProvider)} for grain type {grainType}");
+                        throw new InvalidOperationException(
+                            $"Unable to find an {nameof(IGrainReferenceActivatorProvider)} for grain type {grainType}");
                     }
 
                     entry = activator;
@@ -124,8 +125,11 @@ namespace Orleans.GrainReferences
             _serviceProvider = serviceProvider;
         }
 
-        /// <inheritdoc />
-        public bool TryGet(GrainType grainType, GrainInterfaceType interfaceType, out IGrainReferenceActivator activator)
+        /// <inheritdoc/>
+        public bool TryGet(
+            GrainType grainType,
+            GrainInterfaceType interfaceType,
+            out IGrainReferenceActivator activator)
         {
             if (!interfaceType.IsDefault)
             {
@@ -165,7 +169,7 @@ namespace Orleans.GrainReferences
                 _shared = shared;
             }
 
-            /// <inheritdoc />
+            /// <inheritdoc/>
             public GrainReference CreateReference(GrainId grainId)
             {
                 return GrainReference.FromGrainId(_shared, grainId);
@@ -313,8 +317,11 @@ namespace Orleans.GrainReferences
             _grainVersionManifest = grainVersionManifest;
         }
 
-        /// <inheritdoc />
-        public bool TryGet(GrainType grainType, GrainInterfaceType interfaceType, out IGrainReferenceActivator activator)
+        /// <inheritdoc/>
+        public bool TryGet(
+            GrainType grainType,
+            GrainInterfaceType interfaceType,
+            out IGrainReferenceActivator activator)
         {
             if (!_rpcProvider.TryGet(interfaceType, out var proxyType))
             {
@@ -364,10 +371,15 @@ namespace Orleans.GrainReferences
             {
                 _shared = shared;
 
-                var ctor = referenceType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, new[] { typeof(GrainReferenceShared), typeof(IdSpan) })
-                    ?? throw new SerializerException("Invalid proxy type: " + referenceType);
+                var ctor = referenceType.GetConstructor(
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    new[] { typeof(GrainReferenceShared), typeof(IdSpan) })
+                           ?? throw new SerializerException($"Invalid proxy type: {referenceType}");
 
-                var method = new DynamicMethod(referenceType.Name, typeof(GrainReference), new[] { typeof(object), typeof(GrainReferenceShared), typeof(IdSpan) });
+                var method = new DynamicMethod(
+                    referenceType.Name,
+                    typeof(GrainReference),
+                    new[] { typeof(object), typeof(GrainReferenceShared), typeof(IdSpan) });
                 var il = method.GetILGenerator();
                 // arg0 is unused for better delegate performance (avoids argument shuffling thunk)
                 il.Emit(OpCodes.Ldarg_1);
@@ -393,7 +405,10 @@ namespace Orleans.GrainReferences
         /// <param name="interfaceType">The grain interface type.</param>
         /// <param name="activator">The grain activator.</param>
         /// <returns>A value indicating whether a suitable grain activator was found.</returns>
-        bool TryGet(GrainType grainType, GrainInterfaceType interfaceType, [NotNullWhen(true)] out IGrainReferenceActivator activator);
+        bool TryGet(
+            GrainType grainType,
+            GrainInterfaceType interfaceType,
+            [NotNullWhen(true)] out IGrainReferenceActivator activator);
     }
 
     /// <summary>

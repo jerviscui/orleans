@@ -4,15 +4,22 @@ namespace Orleans.Configuration
 {
     public class TransactionalStateOptions
     {
-        // max time a group can occupy the lock
+        
+        /// <summary>
+        /// max time a group can occupy the lock
+        /// </summary>
         public TimeSpan LockTimeout { get; set; } = DefaultLockTimeout;
         public static TimeSpan DefaultLockTimeout = TimeSpan.FromSeconds(8);
 
-        // max time the TM will wait for prepare phase to complete
+        /// <summary>
+        /// max time the TM will wait for prepare phase to complete
+        /// </summary>
         public TimeSpan PrepareTimeout { get; set; } = DefaultPrepareTimeout;
         public static TimeSpan DefaultPrepareTimeout => TimeSpan.FromSeconds(20);
 
-        // max time a transaction will wait for the lock to become available
+        /// <summary>
+        /// max time a transaction will wait for the lock to become available
+        /// </summary>
         public TimeSpan LockAcquireTimeout { get; set; } = DefaultLockAcquireTimeout;
         public static TimeSpan DefaultLockAcquireTimeout => TimeSpan.FromSeconds(10);
 

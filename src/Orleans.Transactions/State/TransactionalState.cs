@@ -137,6 +137,7 @@ namespace Orleans.Transactions
                 throw new OrleansReadOnlyViolatedException(info.Id);
             }
 
+            // Participants 存储了当前 participant？返回 true？
             info.Participants.TryGetValue(this.participantId, out var recordedaccesses);
 
             return this.queue.RWLock
@@ -223,7 +224,9 @@ namespace Orleans.Transactions
                     new TransactionManager<TState>(queue));
         }
 
-        // ActivationData Command.Activate 时调用
+        /// <summary>
+        /// 初始化，ActivationData Command.Activate 时调用
+        /// </summary>
         internal async Task OnSetupState(Action<IGrainContext, string, TransactionQueue<TState>> setupResourceFactory,
             CancellationToken ct)
         {

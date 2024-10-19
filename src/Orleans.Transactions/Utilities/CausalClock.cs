@@ -4,41 +4,41 @@ namespace Orleans.Transactions
 {
     public class CausalClock
     {
-        private readonly object lockable = new object();
-        private readonly IClock clock;
-        private long previous;
+        private readonly object _lockable = new object();
+        private readonly IClock _clock;
+        private long _previous;
 
         public CausalClock(IClock clock)
         {
-            this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
+            this._clock = clock ?? throw new ArgumentNullException(nameof(clock));
         }
 
         public DateTime UtcNow()
         {
-            lock (this.lockable)
+            lock (this._lockable)
             {
-                var ticks = previous = Math.Max(previous + 1, this.clock.UtcNow().Ticks);
+                var ticks = _previous = Math.Max(_previous + 1, this._clock.UtcNow().Ticks);
                 return new DateTime(ticks, DateTimeKind.Utc);
             }
         }
 
         public DateTime Merge(DateTime timestamp)
         {
-            lock (this.lockable)
+            lock (this._lockable)
             {
-                var ticks = previous = Math.Max(previous, timestamp.Ticks);
+                var ticks = _previous = Math.Max(_previous, timestamp.Ticks);
                 return new DateTime(ticks, DateTimeKind.Utc);
             }
         }
 
         /// <summary>
-        /// 保证消息链中的时间单调递增
+        /// 将时间设置为较大的值，保证消息链中的时间单调递增
         /// </summary>
         public DateTime MergeUtcNow(DateTime timestamp)
         {
-            lock (this.lockable)
+            lock (this._lockable)
             {
-                var ticks = previous = Math.Max(Math.Max(previous + 1, timestamp.Ticks + 1), this.clock.UtcNow().Ticks);
+                var ticks = _previous = Math.Max(Math.Max(_previous + 1, timestamp.Ticks + 1), this._clock.UtcNow().Ticks);
                 return new DateTime(ticks, DateTimeKind.Utc);
             }
         }

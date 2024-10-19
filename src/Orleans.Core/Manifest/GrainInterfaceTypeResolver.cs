@@ -7,7 +7,7 @@ using Orleans.Serialization.TypeSystem;
 namespace Orleans.Metadata
 {
     /// <summary>
-    /// Associates a <see cref="GrainInterfaceType"/> with a <see cref="Type" />.
+    /// Associates a <see cref="GrainInterfaceType"/> with a <see cref="Type"/>.
     /// </summary>
     public class GrainInterfaceTypeResolver
     {
@@ -40,7 +40,9 @@ namespace Orleans.Metadata
         {
             if (!type.IsInterface)
             {
-                throw new ArgumentException($"Argument {nameof(type)} must be an interface. Provided value, \"{type}\", is not an interface.", nameof(type));
+                throw new ArgumentException(
+                    $"Argument {nameof(type)} must be an interface. Provided value, \"{type}\", is not an interface.",
+                    nameof(type));
             }
 
             // Configured providers take precedence
@@ -64,11 +66,14 @@ namespace Orleans.Metadata
         /// <returns>The grain interface type name.</returns>
         public GrainInterfaceType GetGrainInterfaceTypeByConvention(Type type)
         {
-            var result = GrainInterfaceType.Create(_typeConverter.Format(type, input => input switch
-            {
-                AssemblyQualifiedTypeSpec asm => asm.Type, // drop outer assembly qualification
-                _ => input
-            }));
+            var result = GrainInterfaceType.Create(
+                _typeConverter.Format(
+                    type,
+                    input => input switch
+                    {
+                        AssemblyQualifiedTypeSpec asm => asm.Type, // drop outer assembly qualification
+                        _ => input
+                    }));
 
             result = AddGenericParameters(result, type);
             return result;
