@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -42,7 +42,7 @@ namespace Orleans.Transactions
         // follow-up actions, to be executed after storing this batch
         private readonly List<Action> followUpActions;
         private readonly List<Func<Task<bool>>> storeConditions;
-        
+
         // counters for each type of event
         private int total = 0;
         private int prepare = 0;
@@ -84,10 +84,10 @@ namespace Orleans.Transactions
         {
         }
 
-        public async Task<string> Store(ITransactionalStateStorage<TState> storage)
+        public Task<string> Store(ITransactionalStateStorage<TState> storage)
         {
             List<PendingTransactionState<TState>> list = this.prepares.Values.ToList();
-            return await storage.Store(ETag, this.MetaData, list,
+            return storage.Store(ETag, this.MetaData, list,
                 (confirm > 0) ? confirmUpTo : (long?)null,
                 (cancelAbove < cancelAboveStart) ? cancelAbove : (long?)null);
         }
@@ -171,7 +171,7 @@ namespace Orleans.Transactions
             }
         }
 
-        public void Commit(Guid transactionId, DateTime timestamp, List<ParticipantId> WriteParticipants)
+        public void Commit(Guid transactionId, DateTime timestamp, List<ParticipantId> writeResources)
         {
             commit++;
             total++;
@@ -179,7 +179,7 @@ namespace Orleans.Transactions
             MetaData.CommitRecords.Add(transactionId, new CommitRecord()
             {
                 Timestamp = timestamp,
-                WriteParticipants = WriteParticipants
+                WriteParticipants = writeResources
             });
         }
 
@@ -207,7 +207,7 @@ namespace Orleans.Transactions
                 return true;
 
             bool[] results = await Task.WhenAll(this.storeConditions.Select(a => a.Invoke()));
-            return results.All(b => b);
+            return Array.TrueForAll(results, b => b);
         }
     }
 }
