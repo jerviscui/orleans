@@ -22,14 +22,19 @@ namespace Orleans.Transactions.AzureStorage
 
         public TableEntity Entity { get; }
 
+        //? check TableEntity content
         public StateEntity(TableEntity entity) => Entity = entity;
 
         public string PartitionKey => Entity.PartitionKey;
+
         public string RowKey => Entity.RowKey;
+
         public DateTimeOffset? Timestamp => Entity.Timestamp;
+
         public ETag ETag => Entity.ETag;
 
         public static string MakeRowKey(long sequenceId)
+
         {
             return $"{RK_PREFIX}{sequenceId.ToString("x16")}";
         }
@@ -59,10 +64,16 @@ namespace Orleans.Transactions.AzureStorage
             set => this.Entity[nameof(this.TransactionManager)] = value;
         }
 
-        public string StateJson { get => this.GetStateInternal(); set => this.SetStateInternal(value); }
+        public string StateJson
+        {
+            get => this.GetStateInternal();
+            set => this.SetStateInternal(value);
+        }
 
-        public static StateEntity Create<T>(JsonSerializerSettings JsonSettings,
-            string partitionKey, PendingTransactionState<T> pendingState)
+        public static StateEntity Create<T>(
+            JsonSerializerSettings JsonSettings,
+            string partitionKey,
+            PendingTransactionState<T> pendingState)
             where T : class, new()
         {
             var entity = new TableEntity(partitionKey, MakeRowKey(pendingState.SequenceId));
@@ -89,7 +100,7 @@ namespace Orleans.Transactions.AzureStorage
 
         private void SetStateInternal(string stringData)
         {
-            this.CheckMaxDataSize((stringData ?? string.Empty).Length * 2, MAX_DATA_CHUNK_SIZE * MAX_DATA_CHUNKS_COUNT);
+            CheckMaxDataSize((stringData ?? string.Empty).Length * 2, MAX_DATA_CHUNK_SIZE * MAX_DATA_CHUNKS_COUNT);
 
             foreach (var key in StringDataPropertyNames)
             {
@@ -103,7 +114,8 @@ namespace Orleans.Transactions.AzureStorage
 
             static IEnumerable<KeyValuePair<string, object>> SplitStringData(string stringData)
             {
-                if (string.IsNullOrEmpty(stringData)) yield break;
+                if (string.IsNullOrEmpty(stringData))
+                    yield break;
 
                 var columnIndex = 0;
                 var stringStartIndex = 0;
@@ -121,6 +133,9 @@ namespace Orleans.Transactions.AzureStorage
             }
         }
 
+        /// <summary>
+        /// return State json
+        /// </summary>
         private string GetStateInternal()
         {
             return string.Concat(ReadStringDataChunks(this.Entity));
@@ -129,12 +144,10 @@ namespace Orleans.Transactions.AzureStorage
             {
                 foreach (var stringDataPropertyName in StringDataPropertyNames)
                 {
-                    if (properties.TryGetValue(stringDataPropertyName, out var dataProperty))
+                    if (properties.TryGetValue(stringDataPropertyName, out var dataProperty)
+                        && dataProperty is string { Length: > 0 } data)
                     {
-                        if (dataProperty is string { Length: >0 } data)
-                        {
-                            yield return data;
-                        }
+                        yield return data;
                     }
                 }
             }
@@ -146,12 +159,12 @@ namespace Orleans.Transactions.AzureStorage
             return result;
         }
 
-        private void CheckMaxDataSize(int dataSize, int maxDataSize)
+        private static void CheckMaxDataSize(int dataSize, int maxDataSize)
         {
             if (dataSize > maxDataSize)
             {
-                var msg = string.Format("Data too large to write to table. Size={0} MaxSize={1}", dataSize, maxDataSize);
-                throw new ArgumentOutOfRangeException("state", msg);
+                var msg = $"Data too large to write to table. Size={dataSize} MaxSize={maxDataSize}";
+                throw new ArgumentOutOfRangeException(nameof(dataSize), msg);
             }
         }
 
@@ -160,7 +173,7 @@ namespace Orleans.Transactions.AzureStorage
             yield return STRING_DATA_PROPERTY_NAME_PREFIX;
             for (var i = 1; i < MAX_DATA_CHUNKS_COUNT; ++i)
             {
-                yield return STRING_DATA_PROPERTY_NAME_PREFIX + i.ToString(CultureInfo.InvariantCulture);
+                yield return $"{STRING_DATA_PROPERTY_NAME_PREFIX}{i.ToString(CultureInfo.InvariantCulture)}";
             }
         }
     }

@@ -48,6 +48,7 @@ namespace Orleans.Transactions.AzureStorage
                 _key = await keyTask.ConfigureAwait(false);
                 _states = await statesTask.ConfigureAwait(false);
 
+                //? 表中没有存储 ETag，读取如何获得 ETag？
                 if (string.IsNullOrEmpty(_key.ETag.ToString()))
                 {
                     if (_logger.IsEnabled(LogLevel.Debug))
@@ -115,7 +116,7 @@ namespace Orleans.Transactions.AzureStorage
                             _partition,
                             _key.CommittedSequenceId,
                             string.Join(",", _states.Select(s => s.Key.ToString("x16", CultureInfo.InvariantCulture))));
-                    
+
                     TransactionalStateMetaData metadata = JsonConvert.DeserializeObject<TransactionalStateMetaData>(
                         _key.Metadata,
                         _jsonSettings);
@@ -302,12 +303,12 @@ namespace Orleans.Transactions.AzureStorage
             {
                 switch (_states[pos].Key.CompareTo(sequenceId))
                 {
-                    case 0:
+                    case 0: // equal
                         return true;
-                    case -1:
+                    case -1: // smaller
                         pos++;
                         continue;
-                    case 1:
+                    case 1: // greater, and no equals
                         return false;
                     default:
                         throw new NotImplementedException();
