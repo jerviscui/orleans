@@ -12,39 +12,51 @@ using Orleans.Timers.Internal;
 
 namespace Orleans.Transactions.State
 {
-    internal class TransactionQueue<TState>
-        where TState : class, new()
+    internal class TransactionQueue<TState> where TState : class, new()
     {
         private readonly TransactionalStateOptions _options;
         private readonly ParticipantId _resource;
         private readonly Action _deactivate;
         private readonly ITransactionalStateStorage<TState> _storage;
         private readonly BatchWorker _storageWorker;
-        protected readonly ILogger Logger;
+
+        protected ILogger Logger { get; }
+
         private readonly IActivationLifetime _activationLifetime;
         private readonly ConfirmationWorker<TState> _confirmationWorker;
         private CommitQueue<TState> _commitQueue;
         private Task _readyTask;
 
-        protected StorageBatch<TState> StorageBatch;
+        protected StorageBatch<TState> StorageBatch { get; set; }
 
         private int _failCounter;
 
         // collection tasks
         private readonly Dictionary<DateTime, PreparedMessages> _unprocessedPreparedMessages;
+
         private class PreparedMessages
         {
             public PreparedMessages(TransactionalStatus status)
             {
                 this.Status = status;
             }
-            public int Count;
-            public TransactionalStatus Status;
+
+            public int Count { get; set; }
+
+            public TransactionalStatus Status { get; set; }
         }
 
+        /// <summary>
+        /// 稳定版本
+        /// </summary>
         private TState _stableState;
+        /// <summary>
+        /// 稳定版本 SequenceId
+        /// </summary>
         private long _stableSequenceNumber;
+
         public ReadWriteLock<TState> RWLock { get; }
+
         public CausalClock Clock { get; }
 
         public TransactionQueue(
@@ -66,8 +78,16 @@ namespace Orleans.Transactions.State
             this._activationLifetime = activationLifetime;
             this._storageWorker = new BatchWorkerFromDelegate(StorageWork, this._activationLifetime.OnDeactivating);
             this.RWLock = new ReadWriteLock<TState>(options, this, this._storageWorker, logger, activationLifetime);
-            this._confirmationWorker = new ConfirmationWorker<TState>(options, this._resource, this._storageWorker, () => this.StorageBatch, this.Logger, timerManager, activationLifetime);
-            this._unprocessedPreparedMessages = new Dictionary<DateTime, PreparedMessages>();
+            this._confirmationWorker =
+                new ConfirmationWorker<TState>(
+                    options,
+                    this._resource,
+                    this._storageWorker,
+                    () => this.StorageBatch,
+                    this.Logger,
+                    timerManager,
+                    activationLifetime);
+            this._unprocessedPreparedMessages = [];
             this._commitQueue = new CommitQueue<TState>();
             this._readyTask = Task.CompletedTask;
         }
@@ -77,7 +97,10 @@ namespace Orleans.Transactions.State
             try
             {
                 if (Logger.IsEnabled(LogLevel.Trace))
-                    Logger.LogTrace("Start two-phase-commit {TransactionId} {Timestamp}", record.TransactionId, record.Timestamp.ToString("O"));
+                    Logger.LogTrace(
+                        "Start two-phase-commit {TransactionId} {Timestamp}",
+                        record.TransactionId,
+                        record.Timestamp.ToString("O"));
 
                 _commitQueue.Add(record);
 
@@ -85,82 +108,89 @@ namespace Orleans.Transactions.State
                 switch (record.Role)
                 {
                     case CommitRole.ReadOnly:
-                        {
-                            // no extra actions needed
-                            break;
-                        }
+                        // no extra actions needed
+                        break;
 
                     case CommitRole.LocalCommit:
+                        // process prepared messages received ahead of time
+                        if (_unprocessedPreparedMessages.TryGetValue(record.Timestamp, out PreparedMessages info))
                         {
-                            // process prepared messages received ahead of time
-                            if (_unprocessedPreparedMessages.TryGetValue(record.Timestamp, out PreparedMessages info))
+                            if (info.Status == TransactionalStatus.Ok)
                             {
-                                if (info.Status == TransactionalStatus.Ok)
-                                {
-                                    record.WaitCount -= info.Count;
-                                }
-                                else
-                                {
-                                    await AbortCommits(info.Status, _commitQueue.Count - 1);
-
-                                    this.RWLock.Notify();
-                                }
-                                _unprocessedPreparedMessages.Remove(record.Timestamp);
-                            }
-                            break;
-                        }
-
-                    case CommitRole.RemoteCommit:
-                        {
-
-                            // optimization: can immediately proceed if dependency is implied
-                            bool behindRemoteEntryBySameTM = false;
-                                /* disabled - jbragg - TODO - revisit
-                                _commitQueue.Count >= 2
-                                && _commitQueue[_commitQueue.Count - 2] is TransactionRecord<TState> rce
-                                && rce.Role == CommitRole.RemoteCommit
-                                && rce.TransactionManager.Equals(record.TransactionManager);
-                                */
-
-                            if (record.NumberWrites > 0)
-                            {
-                                this.StorageBatch.Prepare(record.SequenceNumber, record.TransactionId, record.Timestamp, record.TransactionManager, record.State);
+                                record.WaitCount -= info.Count;
                             }
                             else
                             {
-                                this.StorageBatch.Read(record.Timestamp);
+                                await AbortCommits(info.Status, _commitQueue.Count - 1);
+
+                                this.RWLock.Notify();
                             }
+                            _unprocessedPreparedMessages.Remove(record.Timestamp);
+                        }
+                        break;
 
-                            this.StorageBatch.FollowUpAction(() =>
-                            {
-                                if (Logger.IsEnabled(LogLevel.Trace))
-                                {
-                                    Logger.LogTrace("Persisted {Record}", record);
-                                }
+                    case CommitRole.RemoteCommit:
 
-                                record.PrepareIsPersisted = true;
+                        // optimization: can immediately proceed if dependency is implied
+                        bool behindRemoteEntryBySameTM = false;
+                        /* disabled - jbragg - TODO - revisit
+                        _commitQueue.Count >= 2
+                        && _commitQueue[_commitQueue.Count - 2] is TransactionRecord<TState> rce
+                        && rce.Role == CommitRole.RemoteCommit
+                        && rce.TransactionManager.Equals(record.TransactionManager);
+                        */
 
-                                if (behindRemoteEntryBySameTM)
+                        if (record.NumberWrites > 0)
+                        {
+                            this.StorageBatch
+                                .Prepare(
+                                    record.SequenceNumber,
+                                    record.TransactionId,
+                                    record.Timestamp,
+                                    record.TransactionManager,
+                                    record.State);
+                        }
+                        else
+                        {
+                            this.StorageBatch.Read(record.Timestamp);
+                        }
+
+                        this.StorageBatch
+                            .FollowUpAction(
+                                () =>
                                 {
                                     if (Logger.IsEnabled(LogLevel.Trace))
                                     {
-                                        Logger.LogTrace("Sending immediate prepared {Record}", record);
+                                        Logger.LogTrace("Persisted {Record}", record);
                                     }
-                                    // can send prepared message immediately after persisting prepare record
-                                    record.TransactionManager.Reference.AsReference<ITransactionManagerExtension>()
-                                          .Prepared(record.TransactionManager.Name, record.TransactionId, record.Timestamp, this._resource, TransactionalStatus.Ok)
-                                          .Ignore();
-                                    record.LastSent = DateTime.UtcNow;
-                                }
-                            });
-                            break;
-                        }
 
+                                    record.PrepareIsPersisted = true;
+
+                                    if (behindRemoteEntryBySameTM)
+                                    {
+                                        if (Logger.IsEnabled(LogLevel.Trace))
+                                        {
+                                            Logger.LogTrace("Sending immediate prepared {Record}", record);
+                                        }
+                                        // can send prepared message immediately after persisting prepare record
+                                        record.TransactionManager.Reference
+                                            .AsReference<ITransactionManagerExtension>()
+                                            .Prepared(
+                                                record.TransactionManager.Name,
+                                                record.TransactionId,
+                                                record.Timestamp,
+                                                this._resource,
+                                                TransactionalStatus.Ok)
+                                            .Ignore();
+                                        record.LastSent = DateTime.UtcNow;
+                                    }
+                                });
+                        break;
+                    case CommitRole.NotYetDetermined:
+                        throw new NotImplementedException();
                     default:
-                        {
-                            Logger.LogError(777, "internal error: impossible case {CommitRole}", record.Role);
-                            throw new NotSupportedException($"{record.Role} is not a supported CommitRole.");
-                        }
+                        Logger.LogError(777, "internal error: impossible case {CommitRole}", record.Role);
+                        throw new NotSupportedException($"{record.Role} is not a supported CommitRole.");
                 }
             }
             catch (Exception exception)
@@ -174,16 +204,20 @@ namespace Orleans.Transactions.State
         {
             var pos = _commitQueue.Find(transactionId, timeStamp);
             if (Logger.IsEnabled(LogLevel.Trace))
-                Logger.LogTrace("NotifyOfPrepared - TransactionId:{TransactionId} Timestamp:{Timestamp}, TransactionalStatus{TransactionalStatus}", transactionId, timeStamp, status);
+                Logger.LogTrace(
+                    "NotifyOfPrepared - TransactionId:{TransactionId} Timestamp:{Timestamp}, TransactionalStatus{TransactionalStatus}",
+                    transactionId,
+                    timeStamp,
+                    status);
 
             if (pos != -1)
             {
-
                 var localEntry = _commitQueue[pos];
 
                 if (localEntry.Role != CommitRole.LocalCommit)
                 {
-                    Logger.LogError($"Transaction abort due to internal error in {nameof(NotifyOfPrepared)}: Wrong commit type");
+                    Logger.LogError(
+                        $"Transaction abort due to internal error in {nameof(NotifyOfPrepared)}: Wrong commit type");
                     throw new InvalidOperationException($"Wrong commit type: {localEntry.Role}");
                 }
 
@@ -220,7 +254,11 @@ namespace Orleans.Transactions.State
             }
         }
 
-        public async Task NotifyOfPrepare(Guid transactionId, AccessCounter accessCount, DateTime timeStamp, ParticipantId transactionManager)
+        public async Task NotifyOfPrepare(
+            Guid transactionId,
+            AccessCounter accessCount,
+            DateTime timeStamp,
+            ParticipantId transactionManager)
         {
             var locked = await this.RWLock.ValidateLock(transactionId, accessCount);
             var status = locked.Item1;
@@ -245,85 +283,95 @@ namespace Orleans.Transactions.State
             this.RWLock.Notify();
         }
 
-        public async Task NotifyOfAbort(TransactionRecord<TState> entry, TransactionalStatus status, Exception exception)
+        public async Task NotifyOfAbort(
+            TransactionRecord<TState> entry,
+            TransactionalStatus status,
+            Exception exception)
         {
             switch (entry.Role)
             {
                 case CommitRole.NotYetDetermined:
-                    {
-                        // cannot notify anyone. TA will detect broken lock during prepare.
-                        break;
-                    }
+                    // cannot notify anyone. TA will detect broken lock during prepare.
+                    break;
                 case CommitRole.RemoteCommit:
-                    {
-                        if (Logger.IsEnabled(LogLevel.Trace))
-                            Logger.LogTrace("Aborting status={Status} {Entry}", status, entry);
+                    if (Logger.IsEnabled(LogLevel.Trace))
+                        Logger.LogTrace("Aborting status={Status} {Entry}", status, entry);
 
-                        entry.ConfirmationResponsePromise?.TrySetException(new OrleansException($"Confirm failed: Status {status}"));
+                    entry.ConfirmationResponsePromise?.TrySetException(
+                    new OrleansException($"Confirm failed: Status {status}"));
 
-                        if (entry.LastSent.HasValue)
-                            return; // cannot abort anymore if we already sent prepare-ok message
+                    if (entry.LastSent.HasValue)
+                        return; // cannot abort anymore if we already sent prepare-ok message
 
-                        if (Logger.IsEnabled(LogLevel.Trace))
-                            Logger.LogTrace("Aborting via Prepared. Status={Status} Entry={Entry}", status, entry);
+                    if (Logger.IsEnabled(LogLevel.Trace))
+                        Logger.LogTrace("Aborting via Prepared. Status={Status} Entry={Entry}", status, entry);
 
-                        entry.TransactionManager.Reference.AsReference<ITransactionManagerExtension>()
-                             .Prepared(entry.TransactionManager.Name, entry.TransactionId, entry.Timestamp, _resource, status)
-                             .Ignore();
-                        break;
-                    }
+                    entry.TransactionManager.Reference
+                        .AsReference<ITransactionManagerExtension>()
+                        .Prepared(
+                            entry.TransactionManager.Name,
+                            entry.TransactionId,
+                            entry.Timestamp,
+                            _resource,
+                            status)
+                        .Ignore();
+                    break;
                 case CommitRole.LocalCommit:
-                    {
-                        if (Logger.IsEnabled(LogLevel.Trace))
-                            Logger.LogTrace("Aborting status={Status} {Entry}", status, entry);
+                    if (Logger.IsEnabled(LogLevel.Trace))
+                        Logger.LogTrace("Aborting status={Status} {Entry}", status, entry);
 
-                        try
-                        {
-                            // tell remote participants
-                            await Task.WhenAll(entry.WriteParticipants
+                    try
+                    {
+                        // tell remote participants
+                        await Task.WhenAll(
+                            entry.WriteParticipants
                                 .Where(p => !p.Equals(_resource))
-                                .Select(p => p.Reference.AsReference<ITransactionalResourceExtension>()
-                                     .Cancel(p.Name, entry.TransactionId, entry.Timestamp, status)));
-                        }
-                        catch(Exception ex)
-                        {
-                            this.Logger.LogWarning(ex, "Failed to notify all transaction participants of cancellation.  TransactionId: {TransactionId}, Timestamp: {Timestamp}, Status: {Status}", entry.TransactionId, entry.Timestamp, status);
-                        }
-
-                        // reply to transaction agent
-                        if (exception is not null)
-                        {
-                            entry.PromiseForTA.TrySetException(exception);
-                        }
-                        else
-                        {
-                            entry.PromiseForTA.TrySetResult(status);
-                        }
-
-                        break;
+                                .Select(
+                                    p =>
+                                            p.Reference
+                                            .AsReference<ITransactionalResourceExtension>()
+                                            .Cancel(p.Name, entry.TransactionId, entry.Timestamp, status)));
                     }
+                    catch (Exception ex)
+                    {
+                        this.Logger
+                            .LogWarning(
+                                ex,
+                                "Failed to notify all transaction participants of cancellation.  TransactionId: {TransactionId}, Timestamp: {Timestamp}, Status: {Status}",
+                                entry.TransactionId,
+                                entry.Timestamp,
+                                status);
+                    }
+
+                    // reply to transaction agent
+                    if (exception is not null)
+                    {
+                        entry.PromiseForTA.TrySetException(exception);
+                    }
+                    else
+                    {
+                        entry.PromiseForTA.TrySetResult(status);
+                    }
+
+                    break;
                 case CommitRole.ReadOnly:
+                    if (Logger.IsEnabled(LogLevel.Trace))
+                        Logger.LogTrace("Aborting status={Status} {Entry}", status, entry);
+
+                    // reply to transaction agent
+                    if (exception is not null)
                     {
-                        if (Logger.IsEnabled(LogLevel.Trace))
-                            Logger.LogTrace("Aborting status={Status} {Entry}", status, entry);
-
-                        // reply to transaction agent
-                        if (exception is not null)
-                        {
-                            entry.PromiseForTA.TrySetException(exception);
-                        }
-                        else
-                        {
-                            entry.PromiseForTA.TrySetResult(status);
-                        }
-
-                        break;
+                        entry.PromiseForTA.TrySetException(exception);
                     }
+                    else
+                    {
+                        entry.PromiseForTA.TrySetResult(status);
+                    }
+
+                    break;
                 default:
-                    {
-                        Logger.LogError(777, "internal error: impossible case {CommitRole}", entry.Role);
-                        throw new NotSupportedException($"{entry.Role} is not a supported CommitRole.");
-                    }
+                    Logger.LogError(777, "internal error: impossible case {CommitRole}", entry.Role);
+                    throw new NotSupportedException($"{entry.Role} is not a supported CommitRole.");
             }
         }
 
@@ -348,8 +396,9 @@ namespace Orleans.Transactions.State
                         Logger.LogTrace("Received ping for {TransactionId}, unknown - presumed abort", transactionId);
 
                     // we never heard of this transaction - so it must have aborted
-                    await resource.Reference.AsReference<ITransactionalResourceExtension>()
-                            .Cancel(resource.Name, transactionId, timeStamp, TransactionalStatus.PresumedAbort);
+                    await resource.Reference
+                        .AsReference<ITransactionalResourceExtension>()
+                        .Cancel(resource.Name, transactionId, timeStamp, TransactionalStatus.PresumedAbort);
                 }
             }
         }
@@ -375,7 +424,9 @@ namespace Orleans.Transactions.State
 
             // setting this field makes this entry ready for batching
 
-            remoteEntry.ConfirmationResponsePromise = remoteEntry.ConfirmationResponsePromise ?? new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            remoteEntry.ConfirmationResponsePromise =
+                remoteEntry.ConfirmationResponsePromise
+                ?? new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _storageWorker.Notify();
 
@@ -387,7 +438,12 @@ namespace Orleans.Transactions.State
         public async Task NotifyOfCancel(Guid transactionId, DateTime timeStamp, TransactionalStatus status)
         {
             if (Logger.IsEnabled(LogLevel.Trace))
-                Logger.LogTrace("{MethodName}. TransactionId: {TransactionId}, TimeStamp: {TimeStamp} Status: {TransactionalStatus}", nameof(NotifyOfCancel), transactionId, timeStamp, status);
+                Logger.LogTrace(
+                    "{MethodName}. TransactionId: {TransactionId}, TimeStamp: {TimeStamp} Status: {TransactionalStatus}",
+                    nameof(NotifyOfCancel),
+                    transactionId,
+                    timeStamp,
+                    status);
 
             // find in _queue
             var pos = _commitQueue.Find(transactionId, timeStamp);
@@ -467,6 +523,7 @@ namespace Orleans.Transactions.State
             this.Clock.Merge(StorageBatch.MetaData.TimeStamp);
 
             // resume prepared transactions (not TM)
+            // 如果有未完成的事务，放入 _commitQueue
             foreach (var pr in loadresponse.PendingStates.OrderBy(ps => ps.TimeStamp))
             {
                 if (pr.SequenceId > loadresponse.CommittedSequenceId && pr.TransactionManager.Reference != null)
@@ -476,35 +533,37 @@ namespace Orleans.Transactions.State
 
                     ParticipantId tm = pr.TransactionManager;
 
-                    _commitQueue.Add(new TransactionRecord<TState>()
-                    {
-                        Role = CommitRole.RemoteCommit,
-                        TransactionId = Guid.Parse(pr.TransactionId),
-                        Timestamp = pr.TimeStamp,
-                        State = pr.State,
-                        SequenceNumber = pr.SequenceId,
-                        TransactionManager = tm,
-                        PrepareIsPersisted = true,
-                        LastSent = default(DateTime),
-                        ConfirmationResponsePromise = null,
-                        NumberWrites = 1 // was a writing transaction
-                    });
+                    _commitQueue.Add(
+                        new TransactionRecord<TState>
+                        {
+                            Role = CommitRole.RemoteCommit,
+                            TransactionId = Guid.Parse(pr.TransactionId),
+                            Timestamp = pr.TimeStamp,
+                            State = pr.State,
+                            SequenceNumber = pr.SequenceId,
+                            TransactionManager = tm,
+                            PrepareIsPersisted = true,
+                            LastSent = default(DateTime),
+                            ConfirmationResponsePromise = null,
+                            NumberWrites = 1 // was a writing transaction
+                        });
                     this._stableSequenceNumber = pr.SequenceId;
                 }
             }
 
             // resume committed transactions (on TM)
+            // 发起 TransactionalResourceExtension.Confirm()
             foreach (var kvp in StorageBatch.MetaData.CommitRecords)
             {
                 if (Logger.IsEnabled(LogLevel.Debug))
-                    Logger.LogDebug(
-                        "Recover commit confirmation {Key}",
-                        kvp.Key);
+                    Logger.LogDebug("Recover commit confirmation {Key}", kvp.Key);
                 this._confirmationWorker.Add(kvp.Key, kvp.Value.Timestamp, kvp.Value.WriteParticipants);
             }
 
             // check for work
+            // 执行 TransactionQueue.StorageWork() 597
             this._storageWorker.Notify();
+            // 执行 ReadWriteLock.LockWork()
             this.RWLock.Notify();
         }
 
@@ -538,7 +597,8 @@ namespace Orleans.Transactions.State
         private async Task StorageWork()
         {
             // Stop if this activation is stopping/stopped.
-            if (this._activationLifetime.OnDeactivating.IsCancellationRequested) return;
+            if (this._activationLifetime.OnDeactivating.IsCancellationRequested)
+                return;
 
             using (this._activationLifetime.BlockDeactivation())
             {
@@ -555,11 +615,15 @@ namespace Orleans.Transactions.State
                     if (committableEntries > 0)
                     {
                         // process all committable entries, adding _storage events to the _storage batch
+                        // 发送可以 commit 的 entry 到 
                         CollectEventsForBatch(committableEntries);
 
                         if (Logger.IsEnabled(LogLevel.Debug))
                         {
-                            var recordString = _commitQueue.Count > committableEntries ? _commitQueue[committableEntries].ToString() : "";
+                            var recordString =
+                                _commitQueue.Count > committableEntries
+                                ? _commitQueue[committableEntries].ToString()
+                                : string.Empty;
                             Logger.LogDebug(
                                 "BatchCommit: {CommittableEntries} Leave: {UncommittableEntries}, Record: {Record}",
                                 committableEntries,
@@ -675,71 +739,81 @@ namespace Orleans.Transactions.State
                 var now = DateTime.UtcNow;
 
                 if (Logger.IsEnabled(LogLevel.Trace))
-                    Logger.LogTrace("{CommitQueueSize} entries in _queue waiting for bottom: {BottomEntry}", _commitQueue.Count, bottom);
+                    Logger.LogTrace(
+                        "{CommitQueueSize} entries in _queue waiting for bottom: {BottomEntry}",
+                        _commitQueue.Count,
+                        bottom);
 
                 switch (bottom.Role)
                 {
                     case CommitRole.LocalCommit:
+                        // check for timeout periodically
+                        if (bottom.WaitingSince + this._options.PrepareTimeout <= now)
                         {
-                            // check for timeout periodically
-                            if (bottom.WaitingSince + this._options.PrepareTimeout <= now)
+                            await AbortCommits(TransactionalStatus.PrepareTimeout);
+                            this.RWLock.Notify();
+                        }
+                        else
+                        {
+                            _storageWorker.Notify(bottom.WaitingSince + this._options.PrepareTimeout);
+                        }
+                        break;
+
+                    case CommitRole.RemoteCommit:
+                        if (bottom.PrepareIsPersisted && !bottom.LastSent.HasValue)
+                        {
+                            // send PreparedMessage to remote TM
+                            bottom.TransactionManager.Reference
+                                .AsReference<ITransactionManagerExtension>()
+                                .Prepared(
+                                    bottom.TransactionManager.Name,
+                                    bottom.TransactionId,
+                                    bottom.Timestamp,
+                                    _resource,
+                                    TransactionalStatus.Ok)
+                                .Ignore();
+
+                            bottom.LastSent = now;
+
+                            if (Logger.IsEnabled(LogLevel.Trace))
+                                Logger.LogTrace("Sent Prepared {BottomEntry}", bottom);
+
+                            if (bottom.IsReadOnly)
                             {
-                                await AbortCommits(TransactionalStatus.PrepareTimeout);
-                                this.RWLock.Notify();
+                                _storageWorker.Notify(); // we are ready to batch now
                             }
                             else
                             {
-                                _storageWorker.Notify(bottom.WaitingSince + this._options.PrepareTimeout);
+                                _storageWorker.Notify(
+                                    bottom.LastSent.Value + this._options.RemoteTransactionPingFrequency);
                             }
-                            break;
                         }
-
-                    case CommitRole.RemoteCommit:
+                        else if (!bottom.IsReadOnly && bottom.LastSent.HasValue)
                         {
-                            if (bottom.PrepareIsPersisted && !bottom.LastSent.HasValue)
-                            {
-                                // send PreparedMessage to remote TM
-                                bottom.TransactionManager.Reference.AsReference<ITransactionManagerExtension>()
-                                      .Prepared(bottom.TransactionManager.Name, bottom.TransactionId, bottom.Timestamp, _resource, TransactionalStatus.Ok)
-                                      .Ignore();                                
-                                    
-                                bottom.LastSent = now;
+                            // send ping messages periodically to reactivate crashed TMs
 
+                            if (bottom.LastSent + this._options.RemoteTransactionPingFrequency <= now)
+                            {
                                 if (Logger.IsEnabled(LogLevel.Trace))
-                                    Logger.LogTrace("Sent Prepared {BottomEntry}", bottom);
-
-                                if (bottom.IsReadOnly)
-                                {
-                                    _storageWorker.Notify(); // we are ready to batch now
-                                }
-                                else
-                                {
-                                    _storageWorker.Notify(bottom.LastSent.Value + this._options.RemoteTransactionPingFrequency);
-                                }
+                                    Logger.LogTrace("Sent ping {BottomEntry}", bottom);
+                                bottom.TransactionManager.Reference
+                                    .AsReference<ITransactionManagerExtension>()
+                                    .Ping(
+                                        bottom.TransactionManager.Name,
+                                        bottom.TransactionId,
+                                        bottom.Timestamp,
+                                        _resource)
+                                    .Ignore();
+                                bottom.LastSent = now;
                             }
-                            else if (!bottom.IsReadOnly && bottom.LastSent.HasValue)
-                            {
-                                // send ping messages periodically to reactivate crashed TMs
-
-                                if (bottom.LastSent + this._options.RemoteTransactionPingFrequency <= now)
-                                {
-                                    if (Logger.IsEnabled(LogLevel.Trace))
-                                        Logger.LogTrace("Sent ping {BottomEntry}", bottom);
-                                    bottom.TransactionManager.Reference.AsReference<ITransactionManagerExtension>()
-                                          .Ping(bottom.TransactionManager.Name, bottom.TransactionId, bottom.Timestamp, _resource).Ignore();
-                                    bottom.LastSent = now;
-                                }
-                                _storageWorker.Notify(bottom.LastSent.Value + this._options.RemoteTransactionPingFrequency);
-                            }
-
-                            break;
+                            _storageWorker.Notify(bottom.LastSent.Value + this._options.RemoteTransactionPingFrequency);
                         }
+
+                        break;
 
                     default:
-                        {
-                            Logger.LogError(777, "internal error: impossible case {CommitRole}", bottom.Role);
-                            throw new NotSupportedException($"{bottom.Role} is not a supported CommitRole.");
-                        }
+                        Logger.LogError(777, "internal error: impossible case {CommitRole}", bottom.Role);
+                        throw new NotSupportedException($"{bottom.Role} is not a supported CommitRole.");
                 }
             }
         }
@@ -759,95 +833,105 @@ namespace Orleans.Transactions.State
                 switch (entry.Role)
                 {
                     case CommitRole.LocalCommit:
-                        {
-                            OnLocalCommit(entry);
-                            break;
-                        }
+                        OnLocalCommit(entry);
+                        break;
 
                     case CommitRole.RemoteCommit:
+                        if (entry.ConfirmationResponsePromise == null)
                         {
-                            if (entry.ConfirmationResponsePromise == null)
-                            {
-                                // this is a read-only participant that has sent
-                                // its prepared message.
-                                // So we are really done and need not store or do anything.
-                            }
-                            else
-                            {
-                                // we must confirm in storage, and then respond to TM so it can collect
-                                this.storageBatch.Confirm(entry.SequenceNumber);
-                                this.storageBatch.FollowUpAction(() =>
-                                {
-                                    entry.ConfirmationResponsePromise.TrySetResult(true);
-                                    if (this.Logger.IsEnabled(LogLevel.Trace))
-                                    {
-                                        this.Logger.LogTrace(
-                                            "Confirmed remote commit v{SequenceNumber}. TransactionId:{TransactionId} Timestamp:{Timestamp} TransactionManager:{TransactionManager}",
-                                            entry.SequenceNumber,
-                                            entry.TransactionId,
-                                            entry.Timestamp,
-                                            entry.TransactionManager);
-                                    }
-                                });
-                            }
-
-                            break;
+                            // this is a read-only participant that has sent
+                            // its prepared message.
+                            // So we are really done and need not store or do anything.
                         }
+                        else
+                        {
+                            // we must confirm in storage, and then respond to TM so it can collect
+                            this.StorageBatch.Confirm(entry.SequenceNumber);
+                            this.StorageBatch
+                                .FollowUpAction(
+                                    () =>
+                                    {
+                                        entry.ConfirmationResponsePromise.TrySetResult(true);
+                                        if (this.Logger.IsEnabled(LogLevel.Trace))
+                                        {
+                                            this.Logger
+                                                .LogTrace(
+                                                    "Confirmed remote commit v{SequenceNumber}. TransactionId:{TransactionId} Timestamp:{Timestamp} TransactionManager:{TransactionManager}",
+                                                    entry.SequenceNumber,
+                                                    entry.TransactionId,
+                                                    entry.Timestamp,
+                                                    entry.TransactionManager);
+                                        }
+                                    });
+                        }
+
+                        break;
 
                     case CommitRole.ReadOnly:
-                        {
-                            // we are a participant of a read-only transaction. Must store timestamp and then respond.
-                            this.StorageBatch.Read(entry.Timestamp);
-                            this.StorageBatch.FollowUpAction(() =>
-                            {
-                                entry.PromiseForTA.TrySetResult(TransactionalStatus.Ok);
-                            });
+                        // we are a participant of a read-only transaction. Must store timestamp and then respond.
+                        this.StorageBatch.Read(entry.Timestamp);
+                        this.StorageBatch
+                            .FollowUpAction(
+                                () =>
+                                {
+                                    entry.PromiseForTA.TrySetResult(TransactionalStatus.Ok);
+                                });
 
-                            break;
-                        }
-
+                        break;
+                    case CommitRole.NotYetDetermined:
+                        Logger.LogError(777, "internal error: impossible case {CommitRole}", entry.Role);
+                        throw new NotSupportedException($"{entry.Role} is not a supported CommitRole.");
                     default:
-                        {
-                            Logger.LogError(777, "internal error: impossible case {CommitRole}", entry.Role);
-                            throw new NotSupportedException($"{entry.Role} is not a supported CommitRole.");
-                        }
+                        Logger.LogError(777, "internal error: impossible case {CommitRole}", entry.Role);
+                        throw new NotSupportedException($"{entry.Role} is not a supported CommitRole.");
                 }
             }
         }
 
         protected virtual void OnLocalCommit(TransactionRecord<TState> entry)
         {
-            this.StorageBatch.Prepare(entry.SequenceNumber, entry.TransactionId, entry.Timestamp, entry.TransactionManager, entry.State);
+            this.StorageBatch
+                .Prepare(
+                    entry.SequenceNumber,
+                    entry.TransactionId,
+                    entry.Timestamp,
+                    entry.TransactionManager,
+                    entry.State);
             this.StorageBatch.Commit(entry.TransactionId, entry.Timestamp, entry.WriteParticipants);
             this.StorageBatch.Confirm(entry.SequenceNumber);
 
             // after store, send response back to TA
-            this.StorageBatch.FollowUpAction(() =>
-            {
-                if (this.Logger.IsEnabled(LogLevel.Trace))
-                {
-                    this.Logger.LogTrace(
-                        "Locally committed {TransactionId} {Timestamp}",
-                        entry.TransactionId,
-                        entry.Timestamp.ToString("O"));
-                }
-                entry.PromiseForTA.TrySetResult(TransactionalStatus.Ok);
-            });
+            this.StorageBatch
+                .FollowUpAction(
+                    () =>
+                    {
+                        if (this.Logger.IsEnabled(LogLevel.Trace))
+                        {
+                            Logger.LogTrace(
+                                "Locally committed {TransactionId} {Timestamp}",
+                                entry.TransactionId,
+                                entry.Timestamp.ToString("O"));
+                        }
+                        entry.PromiseForTA.TrySetResult(TransactionalStatus.Ok);
+                    });
 
             if (entry.WriteParticipants.Count > 1)
             {
                 // after committing, we need to run a task to confirm and collect
-                this.StorageBatch.FollowUpAction(() =>
-                {
-                    if (this.Logger.IsEnabled(LogLevel.Trace))
-                    {
-                        this.Logger.LogTrace(
-                            "Adding confirmation to worker for {TransactionId} {Timestamp}",
-                            entry.TransactionId,
-                            entry.Timestamp.ToString("O"));
-                    }
-                    this._confirmationWorker.Add(entry.TransactionId, entry.Timestamp, entry.WriteParticipants);
-                });
+                this.StorageBatch
+                    .FollowUpAction(
+                        () =>
+                        {
+                            if (this.Logger.IsEnabled(LogLevel.Trace))
+                            {
+                                this.Logger
+                                    .LogTrace(
+                                        "Adding confirmation to worker for {TransactionId} {Timestamp}",
+                                        entry.TransactionId,
+                                        entry.Timestamp.ToString("O"));
+                            }
+                            this._confirmationWorker.Add(entry.TransactionId, entry.Timestamp, entry.WriteParticipants);
+                        });
             }
             else
             {
@@ -862,7 +946,11 @@ namespace Orleans.Transactions.State
             // emtpy the back of the commit queue, starting at specified position
             for (int i = from; i < commitQueue.Count; i++)
             {
-                pending.Add(NotifyOfAbort(_commitQueue[i], i == from ? status : TransactionalStatus.CascadingAbort, exception: null));
+                pending.Add(
+                    NotifyOfAbort(
+                        _commitQueue[i],
+                        i == from ? status : TransactionalStatus.CascadingAbort,
+                        exception: null));
             }
             _commitQueue.RemoveFromBack(_commitQueue.Count - from);
 

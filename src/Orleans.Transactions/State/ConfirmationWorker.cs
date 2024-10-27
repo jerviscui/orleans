@@ -41,6 +41,9 @@ namespace Orleans.Transactions.State
             this.pending = new HashSet<Guid>();
         }
 
+        /// <summary>
+        /// 发起 TransactionalResourceExtension.Confirm()
+        /// </summary>
         public void Add(Guid transactionId, DateTime timestamp, List<ParticipantId> participants)
         {
             if (!IsConfirmed(transactionId))

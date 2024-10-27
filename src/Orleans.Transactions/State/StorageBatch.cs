@@ -11,7 +11,12 @@ namespace Orleans.Transactions
     /// </summary>
     public interface ITransactionalStateStorageEvents<TState> where TState : class, new()
     {
-        void Prepare(long sequenceNumber, Guid transactionId, DateTime timestamp, ParticipantId transactionManager, TState state);
+        void Prepare(
+            long sequenceNumber,
+            Guid transactionId,
+            DateTime timestamp,
+            ParticipantId transactionManager,
+            TState state);
 
         void Read(DateTime timestamp);
 
@@ -26,75 +31,91 @@ namespace Orleans.Transactions
 
     /// <summary>
     /// Accumulates storage events, for submitting them to storage as a batch.
+    /// <para>批量提交 prepares 到 storage</para>
     /// </summary>
     /// <typeparam name="TState"></typeparam>
-    internal class StorageBatch<TState> : ITransactionalStateStorageEvents<TState>
-        where TState : class, new()
+    internal class StorageBatch<TState> : ITransactionalStateStorageEvents<TState> where TState : class, new()
     {
         // watermarks for commit, prepare, abort
-        private long confirmUpTo;
-        private long cancelAbove;
-        private readonly long cancelAboveStart;
+        /// <summary>
+        /// Committed SequenceId
+        /// </summary>
+        private long _confirmUpTo;
+        /// <summary>
+        /// prepare SequenceId, 取消 SequenceId 及以前的事务
+        /// </summary>
+        private long _cancelAbove;
+        /// <summary>
+        /// abort SequenceId, 终止 SequenceId 及以前的事务
+        /// </summary>
+        private readonly long _cancelAboveStart;
 
         // prepare records
-        private readonly SortedDictionary<long, PendingTransactionState<TState>> prepares;
+        private readonly SortedDictionary<long, PendingTransactionState<TState>> _prepares;
 
         // follow-up actions, to be executed after storing this batch
-        private readonly List<Action> followUpActions;
-        private readonly List<Func<Task<bool>>> storeConditions;
-
-        // counters for each type of event
-        private int total = 0;
-        private int prepare = 0;
-        private int read = 0;
-        private int commit = 0;
-        private int confirm = 0;
-        private int collect = 0;
-        private int cancel = 0;
+        private readonly List<Action> _followUpActions;
+        private readonly List<Func<Task<bool>>> _storeConditions;
+        private int _prepare;
+        private int _read;
+        private int _commit;
+        private int _confirm;
+        private int _collect;
+        private int _cancel;
 
         public TransactionalStateMetaData MetaData { get; private set; }
 
         public string ETag { get; set; }
 
-        public int BatchSize => total;
+        public int BatchSize { get; private set; }
+
         public override string ToString()
         {
-            return $"batchsize={total} [{read}r {prepare}p {commit}c {confirm}cf {collect}cl {cancel}cc]";
+            return $"batchsize={BatchSize} [{_read}r {_prepare}p {_commit}c {_confirm}cf {_collect}cl {_cancel}cc]";
         }
 
         public StorageBatch(TransactionalStateMetaData metaData, string etag, long confirmUpTo, long cancelAbove)
         {
             this.MetaData = metaData ?? throw new ArgumentNullException(nameof(metaData));
             this.ETag = etag;
-            this.confirmUpTo = confirmUpTo;
-            this.cancelAbove = cancelAbove;
-            this.cancelAboveStart = cancelAbove;
-            this.followUpActions = new List<Action>();
-            this.storeConditions = new List<Func<Task<bool>>>();
-            this.prepares = new SortedDictionary<long, PendingTransactionState<TState>>();
+            this._confirmUpTo = confirmUpTo;
+            this._cancelAbove = cancelAbove;
+            this._cancelAboveStart = cancelAbove;
+            this._followUpActions = [];
+            this._storeConditions = [];
+            this._prepares = [];
         }
 
         public StorageBatch(StorageBatch<TState> previous)
-            : this(previous.MetaData, previous.ETag, previous.confirmUpTo, previous.cancelAbove)
+            : this(previous.MetaData, previous.ETag, previous._confirmUpTo, previous._cancelAbove)
         {
         }
 
         public StorageBatch(TransactionalStorageLoadResponse<TState> loadresponse)
-            : this(loadresponse.Metadata, loadresponse.ETag, loadresponse.CommittedSequenceId, loadresponse.PendingStates.LastOrDefault()?.SequenceId ?? loadresponse.CommittedSequenceId)
+            : this(
+            loadresponse.Metadata,
+            loadresponse.ETag,
+            loadresponse.CommittedSequenceId,
+            loadresponse.PendingStates.Count > 0
+                ? loadresponse.PendingStates[^1].SequenceId
+                : loadresponse.CommittedSequenceId)
         {
         }
 
         public Task<string> Store(ITransactionalStateStorage<TState> storage)
         {
-            List<PendingTransactionState<TState>> list = this.prepares.Values.ToList();
-            return storage.Store(ETag, this.MetaData, list,
-                (confirm > 0) ? confirmUpTo : (long?)null,
-                (cancelAbove < cancelAboveStart) ? cancelAbove : (long?)null);
+            List<PendingTransactionState<TState>> list = this._prepares.Values.ToList();
+            return storage.Store(
+                ETag,
+                this.MetaData,
+                list,
+                (_confirm > 0) ? _confirmUpTo : (long?)null,
+                (_cancelAbove < _cancelAboveStart) ? _cancelAbove : (long?)null);
         }
 
         public void RunFollowUpActions()
         {
-            foreach (var action in followUpActions)
+            foreach (var action in _followUpActions)
             {
                 action();
             }
@@ -102,8 +123,8 @@ namespace Orleans.Transactions
 
         public void Read(DateTime timestamp)
         {
-            read++;
-            total++;
+            _read++;
+            BatchSize++;
 
             if (MetaData.TimeStamp < timestamp)
             {
@@ -111,58 +132,69 @@ namespace Orleans.Transactions
             }
         }
 
-        public void Prepare(long sequenceNumber, Guid transactionId, DateTime timestamp,
-          ParticipantId transactionManager, TState state)
+        /// <summary>
+        /// add to prepares
+        /// </summary>
+        public void Prepare(
+            long sequenceNumber,
+            Guid transactionId,
+            DateTime timestamp,
+            ParticipantId transactionManager,
+            TState state)
         {
-            prepare++;
-            total++;
+            _prepare++;
+            BatchSize++;
 
             if (MetaData.TimeStamp < timestamp)
                 MetaData.TimeStamp = timestamp;
 
-            this.prepares[sequenceNumber] = new PendingTransactionState<TState>
-            {
-                SequenceId = sequenceNumber,
-                TransactionId = transactionId.ToString(),
-                TimeStamp = timestamp,
-                TransactionManager = transactionManager,
-                State = state
-            };
+            this._prepares[sequenceNumber] =
+                new PendingTransactionState<TState>
+                {
+                    SequenceId = sequenceNumber,
+                    TransactionId = transactionId.ToString(),
+                    TimeStamp = timestamp,
+                    TransactionManager = transactionManager,
+                    State = state
+                };
 
-            if (cancelAbove < sequenceNumber)
+            if (_cancelAbove < sequenceNumber)
             {
-                cancelAbove = sequenceNumber;
+                _cancelAbove = sequenceNumber;
             }
         }
 
         public void Cancel(long sequenceNumber)
         {
-            cancel++;
-            total++;
+            _cancel++;
+            BatchSize++;
 
-            this.prepares.Remove(sequenceNumber);
+            this._prepares.Remove(sequenceNumber);
 
-            if (cancelAbove > sequenceNumber - 1)
+            if (_cancelAbove > sequenceNumber - 1)
             {
-                cancelAbove = sequenceNumber - 1;
+                _cancelAbove = sequenceNumber - 1;
             }
         }
 
+        /// <summary>
+        /// clear prepares
+        /// </summary>
         public void Confirm(long sequenceNumber)
         {
-            confirm++;
-            total++;
+            _confirm++;
+            BatchSize++;
 
-            confirmUpTo = sequenceNumber;
+            _confirmUpTo = sequenceNumber;
 
             // remove all redundant prepare records that are superseded by a later confirmed state
             while (true)
             {
-                long? first = this.prepares.Values.FirstOrDefault()?.SequenceId;
+                long? first = this._prepares.Values.FirstOrDefault()?.SequenceId;
 
-                if (first.HasValue && first < confirmUpTo)
+                if (first.HasValue && first < _confirmUpTo)
                 {
-                    this.prepares.Remove(first.Value);
+                    this._prepares.Remove(first.Value);
                 }
                 else
                 {
@@ -171,42 +203,45 @@ namespace Orleans.Transactions
             }
         }
 
+        /// <summary>
+        /// add to CommitRecords
+        /// </summary>
         public void Commit(Guid transactionId, DateTime timestamp, List<ParticipantId> writeResources)
         {
-            commit++;
-            total++;
+            _commit++;
+            BatchSize++;
 
-            MetaData.CommitRecords.Add(transactionId, new CommitRecord()
-            {
-                Timestamp = timestamp,
-                WriteParticipants = writeResources
-            });
+            MetaData.CommitRecords
+                .Add(transactionId, new CommitRecord { Timestamp = timestamp, WriteParticipants = writeResources });
         }
 
+        /// <summary>
+        /// clear CommitRecords
+        /// </summary>
         public void Collect(Guid transactionId)
         {
-            collect++;
-            total++;
+            _collect++;
+            BatchSize++;
 
             MetaData.CommitRecords.Remove(transactionId);
         }
 
         public void FollowUpAction(Action action)
         {
-            followUpActions.Add(action);
+            _followUpActions.Add(action);
         }
 
         public void AddStorePreCondition(Func<Task<bool>> action)
         {
-            this.storeConditions.Add(action);
+            this._storeConditions.Add(action);
         }
 
         public async Task<bool> CheckStorePreConditions()
         {
-            if (this.storeConditions.Count == 0)
+            if (this._storeConditions.Count == 0)
                 return true;
 
-            bool[] results = await Task.WhenAll(this.storeConditions.Select(a => a.Invoke()));
+            bool[] results = await Task.WhenAll(this._storeConditions.Select(a => a.Invoke()));
             return Array.TrueForAll(results, b => b);
         }
     }

@@ -30,9 +30,7 @@ namespace Orleans.Transactions
         /// </summary>
         public Guid TransactionId;
 
-        /// <summary>
-        /// the time at which this transaction was started on the TA
-        /// </summary>
+        // the time at which this transaction was started on the TA
         public DateTime Priority;
 
         /// <summary>
@@ -46,15 +44,11 @@ namespace Orleans.Transactions
         /// </summary>
         public DateTime Timestamp;
 
-        /// <summary>
-        /// the number of reads and writes that this transaction has performed on this transactional participant
-        /// </summary>
+        // the number of reads and writes that this transaction has performed on this transactional participant
         public int NumberReads;
         public int NumberWrites;
 
-        /// <summary>
-        /// the state for this transaction, and the sequence number of this state
-        /// </summary>
+        // the state for this transaction, and the sequence number of this state
         public TState State;
         public long SequenceNumber;
         public bool HasCopiedState;
@@ -110,7 +104,7 @@ namespace Orleans.Transactions
                         return
                             (ConfirmationResponsePromise != null)  // TM has sent confirm and is waiting for response
                             || (NumberWrites == 0 && LastSent.HasValue);  // this participant did not write and finished prepare
-
+                    case CommitRole.NotYetDetermined:
                     default:
                         throw new NotSupportedException($"{Role} is not a supported CommitRole.");
                 }
@@ -129,6 +123,7 @@ namespace Orleans.Transactions
                         return false;
                     case CommitRole.RemoteCommit:
                         return NumberWrites == 0;
+                    case CommitRole.NotYetDetermined:
                     default:
                         throw new NotSupportedException($"{Role} is not a supported CommitRole.");
                 }
@@ -146,6 +141,7 @@ namespace Orleans.Transactions
                         return true;
                     case CommitRole.RemoteCommit:
                         return NumberWrites == 0;
+                    case CommitRole.NotYetDetermined:
                     default:
                         throw new NotImplementedException();
                 }
@@ -155,23 +151,14 @@ namespace Orleans.Transactions
         // formatted for debugging commit queue contents
         public override string ToString()
         {
-            switch (Role)
+            return Role switch
             {
-                case CommitRole.NotYetDetermined:
-                    return $"ND tid={TransactionId} v{SequenceNumber}";
-
-                case CommitRole.ReadOnly:
-                    return $"RE tid={TransactionId} v{SequenceNumber}";
-
-                case CommitRole.LocalCommit:
-                    return $"LCE tid={TransactionId} v{SequenceNumber} wc={WaitCount} rtb={ReadyToCommit}";
-
-                case CommitRole.RemoteCommit:
-                    return $"RCE tid={TransactionId} v{SequenceNumber} pip={PrepareIsPersisted} ls={LastSent.HasValue} ro={IsReadOnly} rtb={ReadyToCommit} tm={TransactionManager}";
-
-                default:
-                    throw new NotSupportedException($"{Role} is not a supported CommitRole.");
-            }
+                CommitRole.NotYetDetermined => $"ND tid={TransactionId} v{SequenceNumber}",
+                CommitRole.ReadOnly => $"RE tid={TransactionId} v{SequenceNumber}",
+                CommitRole.LocalCommit => $"LCE tid={TransactionId} v{SequenceNumber} wc={WaitCount} rtb={ReadyToCommit}",
+                CommitRole.RemoteCommit => $"RCE tid={TransactionId} v{SequenceNumber} pip={PrepareIsPersisted} ls={LastSent.HasValue} ro={IsReadOnly} rtb={ReadyToCommit} tm={TransactionManager}",
+                _ => throw new NotSupportedException($"{Role} is not a supported CommitRole."),
+            };
         }
     }
 }

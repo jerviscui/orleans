@@ -231,6 +231,9 @@ namespace Orleans.Transactions.State
             }
         }
 
+        /// <summary>
+        /// execute <see cref="LockWork"/>
+        /// </summary>
         public void Notify()
         {
             this._lockWorker.Notify();

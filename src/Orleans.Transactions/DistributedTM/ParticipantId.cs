@@ -6,6 +6,9 @@ using Orleans.Transactions.Abstractions;
 
 namespace Orleans.Transactions
 {
+    /// <summary>
+    /// It is TransactionManager
+    /// </summary>
     [Serializable, GenerateSerializer, Immutable]
     public readonly struct ParticipantId
     {

@@ -296,6 +296,9 @@ namespace Orleans.Transactions.AzureStorage
             return _key.ETag.ToString();
         }
 
+        /// <summary>
+        /// State RowKey same of <paramref name="sequenceId"/>, it's lastest committed state
+        /// </summary>
         private bool FindState(long sequenceId, out int pos)
         {
             pos = 0;
@@ -308,7 +311,7 @@ namespace Orleans.Transactions.AzureStorage
                     case -1: // smaller
                         pos++;
                         continue;
-                    case 1: // greater, and no equals
+                    case 1: // greater, and no equals, wrong!
                         return false;
                     default:
                         throw new NotImplementedException();
