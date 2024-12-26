@@ -414,6 +414,7 @@ namespace Orleans.Runtime
 
         /// <summary>
         /// Invokes the provided method.
+        /// 代码生成器创建的代理类，调用此方法向 grain 发出请求
         /// </summary>
         /// <param name="methodDescription">The method description.</param>
         /// <returns>A <see cref="ValueTask"/> representing the operation.</returns>
