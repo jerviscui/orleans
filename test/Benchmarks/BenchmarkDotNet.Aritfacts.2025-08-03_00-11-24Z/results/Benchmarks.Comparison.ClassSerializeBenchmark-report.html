@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Benchmarks.Comparison.ClassSerializeBenchmark-20250803-001145</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 10 (10.0.19045.6093/22H2/2022Update)
+12th Gen Intel Core i7-12800HX, 1 CPU, 24 logical and 16 physical cores
+.NET SDK 9.0.301
+  [Host]     : .NET 8.0.17 (8.0.1725.26602), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.17 (8.0.1725.26602), X64 RyuJIT AVX2
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method     </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Payload</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>Orleans</td><td>32.30 ns</td><td>0.293 ns</td><td>0.260 ns</td><td>1.00</td><td>0.00</td><td>-</td><td>20 B</td><td>-</td><td>NA</td>
+</tr><tr><td>Utf8Json</td><td>69.14 ns</td><td>0.616 ns</td><td>0.546 ns</td><td>2.14</td><td>0.02</td><td>-</td><td>154 B</td><td>-</td><td>NA</td>
+</tr><tr><td>SystemTextJson</td><td>223.15 ns</td><td>2.621 ns</td><td>2.452 ns</td><td>6.92</td><td>0.09</td><td>-</td><td>154 B</td><td>-</td><td>NA</td>
+</tr><tr><td>MessagePackCSharp</td><td>50.52 ns</td><td>0.743 ns</td><td>0.695 ns</td><td>1.57</td><td>0.02</td><td>0.0001</td><td>10 B</td><td>40 B</td><td>NA</td>
+</tr><tr><td>ProtobufNet</td><td>118.31 ns</td><td>1.336 ns</td><td>1.249 ns</td><td>3.66</td><td>0.05</td><td>-</td><td>18 B</td><td>-</td><td>NA</td>
+</tr><tr><td>GoogleProtobuf</td><td>15.82 ns</td><td>0.225 ns</td><td>0.200 ns</td><td>0.49</td><td>0.01</td><td>-</td><td>18 B</td><td>-</td><td>NA</td>
+</tr><tr><td>Hyperion</td><td>55.52 ns</td><td>0.475 ns</td><td>0.444 ns</td><td>1.72</td><td>0.02</td><td>-</td><td>39 B</td><td>-</td><td>NA</td>
+</tr><tr><td>NewtonsoftJson</td><td>505.33 ns</td><td>2.721 ns</td><td>2.412 ns</td><td>15.65</td><td>0.13</td><td>0.0048</td><td>154 B</td><td>2024 B</td><td>NA</td>
+</tr><tr><td>SpanJson</td><td>83.30 ns</td><td>0.539 ns</td><td>0.504 ns</td><td>2.58</td><td>0.02</td><td>0.0005</td><td>154 B</td><td>184 B</td><td>NA</td>
+</tr></tbody></table>
+</body>
+</html>

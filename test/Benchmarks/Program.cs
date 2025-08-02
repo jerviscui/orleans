@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using BenchmarkDotNet.Running;
+using Benchmarks.Comparison;
+using Benchmarks.GrainStorage;
 using Benchmarks.MapReduce;
 using Benchmarks.Ping;
+using Benchmarks.Serialization.Comparison;
 using Benchmarks.Transactions;
-using Benchmarks.GrainStorage;
 
 namespace Benchmarks
 {
@@ -14,7 +16,7 @@ namespace Benchmarks
             ["MapReduce"] = _ =>
             {
                 RunBenchmark(
-                "Running MapReduce benchmark", 
+                "Running MapReduce benchmark",
                 () =>
                 {
                     var mapReduceBenchmark = new MapReduceBenchmark();
@@ -165,7 +167,7 @@ namespace Benchmarks
             },
             ["ConcurrentPing_SiloToSilo"] = _ =>
             {
-                new PingBenchmark(numSilos: 2, startClient: false, grainsOnSecondariesOnly: true).PingConcurrentHostedClient(blocksPerWorker: 10).GetAwaiter().GetResult();                
+                new PingBenchmark(numSilos: 2, startClient: false, grainsOnSecondariesOnly: true).PingConcurrentHostedClient(blocksPerWorker: 10).GetAwaiter().GetResult();
             },
             ["ConcurrentPing_SiloToSilo_Forever"] = _ =>
             {
@@ -227,7 +229,7 @@ namespace Benchmarks
                 "Running grain storage benchmark against memory",
                 () =>
                 {
-                    var benchmark = new GrainStorageBenchmark(10, 10000, TimeSpan.FromSeconds( 30 ));
+                    var benchmark = new GrainStorageBenchmark(10, 10000, TimeSpan.FromSeconds(30));
                     benchmark.MemorySetup();
                     return benchmark;
                 },
@@ -240,7 +242,7 @@ namespace Benchmarks
                 "Running grain storage benchmark against Azure Table",
                 () =>
                 {
-                    var benchmark = new GrainStorageBenchmark(100, 10000, TimeSpan.FromSeconds( 30 ));
+                    var benchmark = new GrainStorageBenchmark(100, 10000, TimeSpan.FromSeconds(30));
                     benchmark.AzureTableSetup();
                     return benchmark;
                 },
@@ -253,7 +255,7 @@ namespace Benchmarks
                 "Running grain storage benchmark against Azure Blob",
                 () =>
                 {
-                    var benchmark = new GrainStorageBenchmark(10, 10000, TimeSpan.FromSeconds( 30 ));
+                    var benchmark = new GrainStorageBenchmark(10, 10000, TimeSpan.FromSeconds(30));
                     benchmark.AzureBlobSetup();
                     return benchmark;
                 },
@@ -266,7 +268,7 @@ namespace Benchmarks
                 "Running grain storage benchmark against AdoNet",
                 () =>
                 {
-                    var benchmark = new GrainStorageBenchmark(100, 10000, TimeSpan.FromSeconds( 30 ));
+                    var benchmark = new GrainStorageBenchmark(100, 10000, TimeSpan.FromSeconds(30));
                     benchmark.AdoNetSetup();
                     return benchmark;
                 },
@@ -282,26 +284,38 @@ namespace Benchmarks
         // requires benchmark name or 'All' word as first parameter
         public static void Main(string[] args)
         {
-            var slicedArgs = args.Skip(1).ToArray();
-            if (args.Length > 0 && args[0].Equals("all", StringComparison.InvariantCultureIgnoreCase))
-            {
-                Console.WriteLine("Running full benchmarks suite");
-                _benchmarks.Select(pair => pair.Value).ToList().ForEach(action => action(slicedArgs));
-                return;
-            }
+            //BenchmarkRunner.Run<ComplexTypeBenchmarks>();
+            //BenchmarkRunner.Run<FieldHeaderBenchmarks>();
+            //BenchmarkRunner.Run<MegaGraphBenchmark>();
 
-            if (args.Length == 0 || !_benchmarks.ContainsKey(args[0]))
-            {
-                Console.WriteLine("Please, select benchmark, list of available:");
-                _benchmarks
-                    .Select(pair => pair.Key)
-                    .ToList()
-                    .ForEach(Console.WriteLine);
-                Console.WriteLine("All");
-                return;
-            }
+            BenchmarkRunner.Run<ArrayDeserializeBenchmark>();
+            BenchmarkRunner.Run<ArraySerializeBenchmark>();
+            BenchmarkRunner.Run<ClassDeserializeBenchmark>();
+            BenchmarkRunner.Run<ClassSerializeBenchmark>();
+            BenchmarkRunner.Run<CopierBenchmark>();
+            BenchmarkRunner.Run<StructDeserializeBenchmark>();
+            BenchmarkRunner.Run<StructSerializeBenchmark>();
 
-            _benchmarks[args[0]](slicedArgs);
+            //var slicedArgs = args.Skip(1).ToArray();
+            //if (args.Length > 0 && args[0].Equals("all", StringComparison.InvariantCultureIgnoreCase))
+            //{
+            //    Console.WriteLine("Running full benchmarks suite");
+            //    _benchmarks.Select(pair => pair.Value).ToList().ForEach(action => action(slicedArgs));
+            //    return;
+            //}
+
+            //if (args.Length == 0 || !_benchmarks.ContainsKey(args[0]))
+            //{
+            //    Console.WriteLine("Please, select benchmark, list of available:");
+            //    _benchmarks
+            //        .Select(pair => pair.Key)
+            //        .ToList()
+            //        .ForEach(Console.WriteLine);
+            //    Console.WriteLine("All");
+            //    return;
+            //}
+
+            //_benchmarks[args[0]](slicedArgs);
         }
 
         private static void RunBenchmark<T>(string name, Func<T> init, Action<T> benchmarkAction, Action<T> tearDown)

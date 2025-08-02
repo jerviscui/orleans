@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Benchmarks.Serialization.Comparison.CopierBenchmark-20250803-001510</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.13.12, Windows 10 (10.0.19045.6093/22H2/2022Update)
+12th Gen Intel Core i7-12800HX, 1 CPU, 24 logical and 16 physical cores
+.NET SDK 9.0.301
+  [Host]     : .NET 8.0.17 (8.0.1725.26602), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.17 (8.0.1725.26602), X64 RyuJIT AVX2
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method        </th><th>Mean </th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>VectorArray</td><td>5,136.38 ns</td><td>44.806 ns</td><td>41.912 ns</td><td>0.0305</td><td>12024 B</td>
+</tr><tr><td>ImmutableVectorArray</td><td>5,070.52 ns</td><td>28.365 ns</td><td>26.533 ns</td><td>0.0305</td><td>12024 B</td>
+</tr><tr><td>Struct</td><td>18.36 ns</td><td>0.137 ns</td><td>0.121 ns</td><td>-</td><td>-</td>
+</tr><tr><td>Class</td><td>40.17 ns</td><td>0.461 ns</td><td>0.431 ns</td><td>0.0001</td><td>56 B</td>
+</tr></tbody></table>
+</body>
+</html>
