@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
@@ -7,6 +7,22 @@
     <OrleansBuildTimeCodeGen>true</OrleansBuildTimeCodeGen>
     <ImplicitUsings>disable</ImplicitUsings>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>_Generated</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="_Generated\**\*.g.cs" />
+    <None Include="_Generated\**\*.g.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="MemoryPackGenerator_SerializationInfoOutputDirectory" />
+  </ItemGroup>
+  <PropertyGroup>
+    <MemoryPackGenerator_SerializationInfoOutputDirectory>$(MSBuildProjectDirectory)\MemoryPackLogs</MemoryPackGenerator_SerializationInfoOutputDirectory>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +44,7 @@
     <ProjectReference Include="$(SourceRoot)src\Orleans.Serialization.SystemTextJson\Orleans.Serialization.SystemTextJson.csproj" />
     <ProjectReference Include="$(SourceRoot)src\Orleans.Serialization.NewtonsoftJson\Orleans.Serialization.NewtonsoftJson.csproj" />
     <ProjectReference Include="$(SourceRoot)src\Orleans.Serialization.MessagePack\Orleans.Serialization.MessagePack.csproj" />
+    <ProjectReference Include="$(SourceRoot)src\Orleans.Serialization.MemoryPack\Orleans.Serialization.MemoryPack.csproj" />
     <ProjectReference Include="$(SourceRoot)src\Serializers\Orleans.Serialization.Protobuf\Orleans.Serialization.Protobuf.csproj" />
     <ProjectReference Include="..\Misc\TestSerializerExternalModels\TestSerializerExternalModels.csproj" />
   </ItemGroup>

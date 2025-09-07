@@ -37,6 +37,7 @@
     <Project Path="src/Orleans.Sdk/Orleans.Sdk.csproj" />
     <Project Path="src/Orleans.Serialization.Abstractions/Orleans.Serialization.Abstractions.csproj" />
     <Project Path="src/Orleans.Serialization.FSharp/Orleans.Serialization.FSharp.csproj" />
+    <Project Path="src/Orleans.Serialization.MemoryPack/Orleans.Serialization.MemoryPack.csproj" />
     <Project Path="src/Orleans.Serialization.MessagePack/Orleans.Serialization.MessagePack.csproj" />
     <Project Path="src/Orleans.Serialization.NewtonsoftJson/Orleans.Serialization.NewtonsoftJson.csproj" />
     <Project Path="src/Orleans.Serialization.SystemTextJson/Orleans.Serialization.SystemTextJson.csproj" />
@@ -84,7 +85,7 @@
     <Project Path="src/Cassandra/Orleans.Clustering.Cassandra/Orleans.Clustering.Cassandra.csproj" />
   </Folder>
   <Folder Name="/src/Extensions/NATS/">
-    <Project Path="src\Orleans.Streaming.NATS\Orleans.Streaming.NATS.csproj" Type="Classic C#" />
+    <Project Path="src\Orleans.Streaming.NATS\Orleans.Streaming.NATS.csproj" />
   </Folder>
   <Folder Name="/src/Extensions/Redis/">
     <Project Path="src/Redis/Orleans.Clustering.Redis/Orleans.Clustering.Redis.csproj" />
@@ -117,11 +118,11 @@
     <Project Path="test/Grains/BenchmarkGrains/BenchmarkGrains.csproj" />
   </Folder>
   <Folder Name="/test/DistributedTests/">
+    <File Path="test/DistributedTests/README.md" />
     <Project Path="test/DistributedTests/DistributedTests.Client/DistributedTests.Client.csproj" />
     <Project Path="test/DistributedTests/DistributedTests.Common/DistributedTests.Common.csproj" />
     <Project Path="test/DistributedTests/DistributedTests.Grains/DistributedTests.Grains.csproj" />
     <Project Path="test/DistributedTests/DistributedTests.Server/DistributedTests.Server.csproj" />
-    <File Path="test/DistributedTests/README.md" />
   </Folder>
   <Folder Name="/test/Extensions/">
     <Project Path="test/Extensions/AWSUtils.Tests/AWSUtils.Tests.csproj" />
@@ -133,7 +134,7 @@
     <Project Path="test/Extensions/TesterAdoNet/Tester.AdoNet.csproj" />
     <Project Path="test/Extensions/TesterAzureUtils/Tester.AzureUtils.csproj" />
     <Project Path="test/Extensions/TesterZooKeeperUtils/Tester.ZooKeeperUtils.csproj" />
-    <Project Path="test\Extensions\NATS.Tests\NATS.Tests.csproj" Type="Classic C#" />
+    <Project Path="test\Extensions\NATS.Tests\NATS.Tests.csproj" />
   </Folder>
   <Folder Name="/test/Grains/">
     <Project Path="test/Grains/TestFSharp/TestFSharp.fsproj" />

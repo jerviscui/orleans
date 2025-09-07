@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using MemoryPack;
 using MessagePack;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -923,45 +924,59 @@ namespace Orleans.Serialization.UnitTests
     }
 
     [MessagePackObject]
-    public sealed record MyMessagePackClass
+    [MemoryPackable]
+    public sealed partial record MyMessagePackClass
     {
         [Key(0)]
+        [MemoryPackOrder(0)]
         public int IntProperty { get; init; }
 
         [Key(1)]
+        [MemoryPackOrder(1)]
         public string StringProperty { get; init; }
 
         [Key(2)]
+        [MemoryPackOrder(2)]
         public MyMessagePackSubClass SubClass { get; init; }
 
         [Key(3)]
+        [MemoryPackOrder(3)]
         public IMyMessagePackUnion Union { get; init; }
     }
 
     [MessagePackObject]
-    public sealed record MyMessagePackSubClass
+    [MemoryPackable]
+    public sealed partial record MyMessagePackSubClass
     {
         [Key(0)]
+        [MemoryPackOrder(0)]
         public Guid Id { get; init; }
     }
 
     [Union(0, typeof(MyMessagePackUnionVariant1))]
     [Union(1, typeof(MyMessagePackUnionVariant2))]
+    [MemoryPackable]
+    [MemoryPackUnion(0, typeof(MyMessagePackUnionVariant1))]
+    [MemoryPackUnion(1, typeof(MyMessagePackUnionVariant2))]
     public interface IMyMessagePackUnion
     {
     }
 
     [MessagePackObject]
-    public sealed record MyMessagePackUnionVariant1 : IMyMessagePackUnion
+    [MemoryPackable]
+    public sealed partial record MyMessagePackUnionVariant1 : IMyMessagePackUnion
     {
         [Key(0)]
+        [MemoryPackOrder(0)]
         public int IntProperty { get; init; }
     }
 
     [MessagePackObject]
-    public sealed record MyMessagePackUnionVariant2 : IMyMessagePackUnion
+    [MemoryPackable]
+    public sealed partial record MyMessagePackUnionVariant2 : IMyMessagePackUnion
     {
         [Key(0)]
+        [MemoryPackOrder(0)]
         public string StringProperty { get; init; }
     }
 }
